@@ -15,20 +15,24 @@ Adafruit_USBD_MIDI usb_midi;
 // Create a new instance of the Arduino MIDI Library,
 // and attach usb_midi as the transport.
    MIDI_CREATE_INSTANCE(Adafruit_USBD_MIDI, usb_midi, Midi);
-
+//Keys
 unsigned long long press[90];
 uint8_t rd,rdu,Key;
 uint8_t pressD[90];
 //Pedal
 uint8_t pedal=0,pread=0;
 unsigned long temp;
-#define PedalPin 24
+#define PedalPin 21
 //Pitch Bend
 int bend,bendo,pith,pitho;
 #define OF 8
+//Pots CC 
+uint8_t potCC[3]={21,22,23}; 
+uint16_t pot[3],poto[3]={0,0,0},potr;
 
 void setup()  
 {
+  
   analogReadResolution(12);//Analog Resolution
     for (uint8_t i=0; i<90; i++) {
         press[i]=0;
@@ -141,8 +145,21 @@ bend=analogRead(26);
       }
       //Serial.println(bend);
 
-   } 
-
+   } //end of bend
+//Potenciometers CC
+  for (uint8_t c=0;c<3;c++){
+     potr=analogRead(27+c);
+      if ((potr>poto[c]+28) || (potr<poto[c]-28)) {
+     poto[c]=potr;
+     potr=map(potr,20,4076,0,128);
+     if (potr<0) potr=0;
+     if (potr>127) potr=127;
+     if (potr!=pot[c]) {
+      pot[c]=potr;
+      CC(potCC[c],potr);
+           }
+      }
+  } //end of for CC
 
 }//end if pedal
 //Pitch Bend
