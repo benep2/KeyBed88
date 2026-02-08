@@ -19,6 +19,8 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MidiS);
 unsigned long long press[90];
 uint8_t rd,rdu,Key;
 uint8_t pressD[90];
+#define TMAX 100000 //time max 
+#define TMIN 4500 //time min
 //Pedal
 uint8_t pedal=0,pread=0;
 unsigned long temp;
@@ -76,7 +78,7 @@ void loop() // Main loop
       digitalWrite(7,(x & 2));// bit 1
       digitalWrite(6,(x & 4));// bit 2
       digitalWrite(5,(x & 8));// bit 3
-      delayMicroseconds(10);
+      delayMicroseconds(20);
       for ( uint8_t y=0;y<6;y++) {
         rd=digitalRead(y+ROFF); //Read low contact
             Key=(x*6)+y; // Key definiton
@@ -94,9 +96,9 @@ void loop() // Main loop
               {
                pressD[Key]=1;
                 uint32_t dt = micros() - press[Key];
-                if (dt < 4500) dt = 4500;
-                if (dt > 100000) dt = 100000;
-                float k = (float)(dt - 4500) / (100000 - 4500);
+                if (dt < TMIN) dt = TMIN;
+                if (dt > TMAX) dt = TMAX;
+                float k = (float)(dt - TMIN) / (TMAX - TMIN);
                 k = sqrt(k);           // Hammer aciton compress
                 float v = 1.0 - k;     // fast = strong
                 v = pow(v, 1.3);       // fine adjust (opcional)
