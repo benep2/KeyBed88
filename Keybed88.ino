@@ -1,7 +1,7 @@
 //################################################
 //#     Keybed Controller pi pico                #
 //#     By Benedito Portela - benep2@gmail.com   #
-//#            2026, Fev   Version: 1.02         #
+//#            2026, April   Version: 1.06       #
 //################################################
 //
 
@@ -19,19 +19,20 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MidiS);
 unsigned long long press[90];
 uint8_t rd,rdu,Key;
 uint8_t pressD[90];
-#define TMAX 100000 //time max 
-#define TMIN 4500 //time min
+#define TMAX 50000 //time max 
+#define TMIN 5000 //time min
 //Pedal
 uint8_t pedal=0,pread=0;
 unsigned long temp;
 #define PedalPin 21
 //Pitch Bend
-#define OF 8
+#define OF 12
 int bend,bendo,pith,pitho;
 //Pots CC 
-uint8_t potCC[3]={07,91,93};// Volume, Reverb, Chorus 
+uint8_t potCC[3]={7,91,93};// Volume, Reverb, Chorus 
 uint16_t pot[3],poto[3]={0,0,0},potr;
 
+bool usbM; 
 void setup()  
 {
   
@@ -44,9 +45,9 @@ void setup()
   TinyUSBDevice.setManufacturerDescriptor("Benedito");
   TinyUSBDevice.setProductDescriptor("KeyBed_88");
   TinyUSBDevice.setSerialDescriptor("Keybed-001");
+  Serial1.begin(31250);
   Midi.begin(MIDI_CHANNEL_OMNI);
   MidiS.begin(MIDI_CHANNEL_OMNI);
-  Serial1.begin(31250);
   // Pins multiplex 4 bits 
   pinMode(5,OUTPUT);
   pinMode(6,OUTPUT);
@@ -78,8 +79,9 @@ void loop() // Main loop
       digitalWrite(7,(x & 2));// bit 1
       digitalWrite(6,(x & 4));// bit 2
       digitalWrite(5,(x & 8));// bit 3
-      delayMicroseconds(20);
+      delayMicroseconds(100);
       for ( uint8_t y=0;y<6;y++) {
+        //delayMicroseconds(5);
         rd=digitalRead(y+ROFF); //Read low contact
             Key=(x*6)+y; // Key definiton
             if ((rd==0) && (press[Key]==0)) {
@@ -101,8 +103,8 @@ void loop() // Main loop
                 float k = (float)(dt - TMIN) / (TMAX - TMIN);
                 k = sqrt(k);           // Hammer aciton compress
                 float v = 1.0 - k;     // fast = strong
-                v = pow(v, 1.3);       // fine adjust (opcional)
-                uint8_t vel = (uint8_t)(v * 127.0);
+                v = pow(v, 1.0);       // fine adjust (opcional)
+                uint8_t vel = ((uint8_t)(v * 127.0));
                 if (vel < 1) vel = 1;
                 if (vel > 127) vel = 127;
                NTON(Key+19,vel); 
@@ -116,7 +118,7 @@ void loop() // Main loop
       
   } //end for x   
 //Pedal
-if (millis()>=temp+5) {
+if (millis()>=temp+8) {
 temp=millis();
 pread=digitalRead(PedalPin);
      if ((pread==0) && (pedal==1)){ 
@@ -127,6 +129,7 @@ if ((pread==1) && (pedal==0)){
      pedal=1;
      CC(64,127);
      }
+
 //Pitch Bend
 bend=analogRead(26);
    if ((bend>bendo+OF) || (bend<bendo-OF)) {
@@ -151,7 +154,7 @@ bend=analogRead(26);
      potr=analogRead(27+c);
       if ((potr>poto[c]+28) || (potr<poto[c]-28)) {
          poto[c]=potr;
-         potr=map(potr,20,4076,0,128);
+         potr=map(potr,20,4070,0,128);
           if (potr<0) potr=0;
           if (potr>127) potr=127;
             if (potr!=pot[c]) {
@@ -160,31 +163,31 @@ bend=analogRead(26);
               }
       }
   } //end of for CC
-
+  usbM = TinyUSBDevice.mounted(); //USB connected check
 }//end if pedal
 
 } //End Main loop 
 // Send MIDI messengers in USB and MIDI Serial Port
-void NTON( unsigned char d1, unsigned char d2 )
+inline void NTON( uint8_t d1, uint8_t d2 )
    {
-          Midi.sendNoteOn(d1,d2, 1);
+         if (usbM) Midi.sendNoteOn(d1,d2, 1);
           MidiS.sendNoteOn(d1,d2, 1);
     }
 //Note Off    
-void NTOFF( unsigned char d1)
+inline void NTOFF( uint8_t d1)
    {
-          Midi.sendNoteOff(d1,0, 1);
+          if (usbM) Midi.sendNoteOff(d1,0, 1);
           MidiS.sendNoteOff(d1,0, 1);
     }
 //CC
-void CC( unsigned char d1, unsigned char d2 )
+inline void CC( uint8_t d1, uint8_t d2 )
    {
-          Midi.sendControlChange(d1,d2, 1);
+          if (usbM) Midi.sendControlChange(d1,d2, 1);
           MidiS.sendControlChange(d1,d2, 1);
     }
     // Pitch Bend
-void Pitch( int d1 )
+inline void Pitch( int d1 )
    {
-          Midi.sendPitchBend(d1,1);
+          if (usbM) Midi.sendPitchBend(d1,1);
           MidiS.sendPitchBend(d1,1);
     }
